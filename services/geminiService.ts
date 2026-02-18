@@ -1,12 +1,37 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-// Fixed: Correctly initialize Gemini API using process.env.API_KEY directly as per SDK guidelines
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy initialization to prevent crashing if API key is missing
+let ai: any = null;
+
+function getAI() {
+  if (ai) return ai;
+  
+  // Try to get key from Vite env or global process env (for compatibility)
+  const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (process.env as any).API_KEY;
+  
+  if (!apiKey) {
+    console.warn("Gemini API Key is missing. AI diagnostics will be disabled.");
+    return null;
+  }
+  
+  try {
+    ai = new GoogleGenAI({ apiKey });
+    return ai;
+  } catch (e) {
+    console.error("Failed to initialize GoogleGenAI:", e);
+    return null;
+  }
+}
 
 export async function analyzeSystemLog(log: string): Promise<string> {
+  const instance = getAI();
+  if (!instance) {
+    return "Error: Gemini API Key not configured. Please set VITE_GEMINI_API_KEY in your .env file.";
+  }
+
   try {
-    const response = await ai.models.generateContent({
+    const response = await instance.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `You are the OpenClaw Master Control Assistant. Analyze the following log and provide a professional, concise diagnosis and solution:
       
