@@ -1,0 +1,7 @@
+{
+  "name": "OpenClaw Master Control",
+  "description": "A professional web-based dashboard and terminal interface for managing the OpenClaw intelligence gateway, featuring lifecycle management, system monitoring, and AI-powered troubleshooting.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
