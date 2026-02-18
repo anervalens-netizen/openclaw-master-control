@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import net from 'net';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,6 +16,29 @@ const CONFIG_PATH = process.env.OPENCLAW_CONFIG || path.join(os.homedir(), '.ope
 process.on('uncaughtException', (err) => {
   console.error('[Bridge Panic]', err);
 });
+
+function checkGatewayPort(port, callback) {
+    const socket = new net.Socket();
+    const timeout = 500;
+    
+    socket.setTimeout(timeout);
+    socket.on('connect', () => {
+        socket.destroy();
+        callback(true);
+    });
+    
+    socket.on('timeout', () => {
+        socket.destroy();
+        callback(false);
+    });
+    
+    socket.on('error', (err) => {
+        socket.destroy();
+        callback(false);
+    });
+    
+    socket.connect(port, '127.0.0.1');
+}
 
 function validateConfig() {
   try {
@@ -72,21 +96,10 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === 'GET' && req.url === '/health') {
-    // Check if gateway port is listening - use a shell command to try multiple tools
-    const gatewayCheck = spawn('sh', ['-c', 'lsof -i :18789 || ss -tln | grep -q :18789 || netstat -tln | grep -q :18789']); 
-    
-    let gatewayActive = false;
-    gatewayCheck.on('close', (code) => {
-        gatewayActive = code === 0;
+    checkGatewayPort(18789, (isActive) => {
         const configStatus = validateConfig();
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ active: gatewayActive, config: configStatus }));
-    });
-    
-    gatewayCheck.on('error', (err) => {
-        const configStatus = validateConfig();
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ active: false, error: 'check_failed', config: configStatus }));
+        res.end(JSON.stringify({ active: isActive, config: configStatus }));
     });
     return;
   }
@@ -102,7 +115,7 @@ const server = http.createServer((req, res) => {
              res.end('Missing command');
              return;
         }
-        res.writeHead(200, { 'Content-Type': 'text/plain' }); // Removed chunked for simplicity in basic bridge
+        res.writeHead(200, { 'Content-Type': 'text/plain' }); 
         
         // Security: potentially dangerous to run arbitrary shell commands. 
         // For a local tool, it's acceptable but should be noted.
