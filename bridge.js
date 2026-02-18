@@ -72,8 +72,8 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === 'GET' && req.url === '/health') {
-    // Check if gateway port is listening
-    const gatewayCheck = spawn('lsof', ['-i', ':18789']); 
+    // Check if gateway port is listening - use a shell command to try multiple tools
+    const gatewayCheck = spawn('sh', ['-c', 'lsof -i :18789 || ss -tln | grep -q :18789 || netstat -tln | grep -q :18789']); 
     
     let gatewayActive = false;
     gatewayCheck.on('close', (code) => {
@@ -84,11 +84,9 @@ const server = http.createServer((req, res) => {
     });
     
     gatewayCheck.on('error', (err) => {
-        // lsof might not be installed or permissions issue
         const configStatus = validateConfig();
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        // Assume inactive if check fails, or add specific error state
-        res.end(JSON.stringify({ active: false, error: 'lsof_check_failed', config: configStatus }));
+        res.end(JSON.stringify({ active: false, error: 'check_failed', config: configStatus }));
     });
     return;
   }
