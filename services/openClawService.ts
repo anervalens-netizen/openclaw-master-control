@@ -11,7 +11,7 @@ export async function executeCommand(
   onError: (err: string) => void
 ): Promise<void> {
   try {
-    const response = await fetch('http://localhost:3001/execute', {
+    const response = await fetch('/api/execute', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ command }),
