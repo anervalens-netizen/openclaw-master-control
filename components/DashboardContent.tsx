@@ -13,6 +13,7 @@ interface DashboardContentProps {
 
 export const DashboardContent: React.FC<DashboardContentProps> = ({ activeTab, onCommand, isExecuting, status }) => {
   const currentCommands: Command[] = COMMANDS[activeTab] || [];
+  const isNotInstalled = status?.config?.status === 'not_installed';
 
   const getAccentColor = () => {
     switch(activeTab) {
@@ -24,6 +25,54 @@ export const DashboardContent: React.FC<DashboardContentProps> = ({ activeTab, o
       default: return 'bg-gray-400';
     }
   };
+
+  if (isNotInstalled) {
+    const installCommand = COMMANDS[TabType.LIFECYCLE].find(c => c.label === 'Install Core');
+    
+    return (
+      <div className="animate-in fade-in zoom-in-95 duration-500">
+        <div className="max-w-3xl mx-auto py-12">
+          <div className="bg-white p-12 rounded-[3rem] border border-gray-100 shadow-xl text-center">
+            <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto mb-8">
+              <ShieldAlert className="text-blue-500 w-10 h-10" />
+            </div>
+            <h1 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">Welcome to OpenClaw</h1>
+            <p className="text-gray-500 mb-12 max-w-md mx-auto leading-relaxed">
+              We couldn't detect a local OpenClaw installation. To begin using the dashboard, you need to install the core system first.
+            </p>
+            
+            <div className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 mb-8 inline-block w-full max-w-md text-left">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Quick Setup</h3>
+              {installCommand && (
+                <div className="space-y-4">
+                  <CommandButton 
+                    command={installCommand}
+                    onClick={() => onCommand(installCommand)}
+                    isExecuting={isExecuting}
+                    variant="hero"
+                  />
+                  <p className="text-[10px] text-gray-400 text-center italic">
+                    This will run the official install.sh script on your system.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-center gap-6 pt-6 border-t border-gray-50">
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                Node.js Detected
+              </div>
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                Bridge Connected
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (activeTab === TabType.HELP) {
     return (

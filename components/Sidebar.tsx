@@ -1,15 +1,17 @@
 
 import React from 'react';
-import { TabType } from '../types';
+import { TabType, SystemStatus } from '../types';
 import { TAB_ICONS } from '../constants';
 
 interface SidebarProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
+  status?: SystemStatus;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, status }) => {
   const tabs = Object.values(TabType);
+  const isNotInstalled = status?.config?.status === 'not_installed';
 
   const getActiveTheme = (tab: TabType) => {
     switch(tab) {
@@ -38,22 +40,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
 
       <nav className="flex-1 px-4 flex flex-col gap-1 overflow-y-auto">
         <div className="text-[10px] font-bold text-gray-300 uppercase tracking-widest px-4 mb-2 mt-4">Console</div>
-        {tabs.map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-full transition-all duration-300 group ${
-              activeTab === tab 
-                ? getActiveTheme(tab)
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            <div className={`transition-transform duration-300 group-hover:scale-110 ${activeTab === tab ? 'scale-110' : ''}`}>
-              {TAB_ICONS[tab]}
-            </div>
-            <span className="text-xs font-semibold">{tab.split(' & ')[0]}</span>
-          </button>
-        ))}
+        {tabs.map(tab => {
+          const isDisabled = isNotInstalled && tab !== TabType.HELP;
+          return (
+            <button
+              key={tab}
+              onClick={() => !isDisabled && setActiveTab(tab)}
+              disabled={isDisabled}
+              className={`flex items-center gap-3 px-4 py-2.5 rounded-full transition-all duration-300 group ${
+                isDisabled ? 'opacity-30 cursor-not-allowed grayscale' :
+                activeTab === tab 
+                  ? getActiveTheme(tab)
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              <div className={`transition-transform duration-300 ${!isDisabled ? 'group-hover:scale-110' : ''} ${activeTab === tab ? 'scale-110' : ''}`}>
+                {TAB_ICONS[tab]}
+              </div>
+              <span className="text-xs font-semibold">{tab.split(' & ')[0]}</span>
+            </button>
+          );
+        })}
       </nav>
 
       <div className="p-4 mt-auto">

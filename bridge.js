@@ -3,9 +3,14 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = 3001;
-const CONFIG_PATH = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+// Robust config path resolution
+const CONFIG_PATH = process.env.OPENCLAW_CONFIG || path.join(os.homedir(), '.openclaw', 'openclaw.json');
 
 process.on('uncaughtException', (err) => {
   console.error('[Bridge Panic]', err);
@@ -14,10 +19,20 @@ process.on('uncaughtException', (err) => {
 function validateConfig() {
   try {
     if (!fs.existsSync(CONFIG_PATH)) {
-      return { status: 'missing', message: 'Config file not found' };
+      console.warn(`[Bridge] Config not found at ${CONFIG_PATH}`);
+      return { 
+        status: 'not_installed', 
+        message: 'OpenClaw is not installed on this system.',
+        action: 'Please use the Install button to begin.'
+      };
     }
     const content = fs.readFileSync(CONFIG_PATH, 'utf8');
-    const json = JSON.parse(content);
+    let json;
+    try {
+        json = JSON.parse(content);
+    } catch (e) {
+        return { status: 'error', message: 'Invalid JSON in config file' };
+    }
     
     // Check for profiles in the new auth structure
     const profiles = json.auth?.profiles || {};
@@ -31,6 +46,7 @@ function validateConfig() {
       };
     }
     
+    // activeProvider might be undefined if profiles is empty, handled above but safe access good
     const activeProvider = Object.values(profiles)[0]?.provider || 'unknown';
     
     return { 
@@ -39,11 +55,12 @@ function validateConfig() {
       backup: fs.existsSync(`${CONFIG_PATH}.bak`)
     };
   } catch (err) {
-    return { status: 'error', message: `JSON Syntax Error: ${err.message}` };
+    return { status: 'error', message: `System Error: ${err.message}` };
   }
 }
 
 const server = http.createServer((req, res) => {
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -55,11 +72,23 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === 'GET' && req.url === '/health') {
-    const gatewayCheck = spawn('sh', ['-c', 'lsof -i :18789']);
-    const configStatus = validateConfig();
+    // Check if gateway port is listening
+    const gatewayCheck = spawn('lsof', ['-i', ':18789']); 
+    
+    let gatewayActive = false;
     gatewayCheck.on('close', (code) => {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ active: code === 0, config: configStatus }));
+        gatewayActive = code === 0;
+        const configStatus = validateConfig();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ active: gatewayActive, config: configStatus }));
+    });
+    
+    gatewayCheck.on('error', (err) => {
+        // lsof might not be installed or permissions issue
+        const configStatus = validateConfig();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        // Assume inactive if check fails, or add specific error state
+        res.end(JSON.stringify({ active: false, error: 'lsof_check_failed', config: configStatus }));
     });
     return;
   }
@@ -70,11 +99,22 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const { command } = JSON.parse(body);
-        res.writeHead(200, { 'Content-Type': 'text/plain', 'Transfer-Encoding': 'chunked' });
-        const child = spawn('sh', ['-c', command]);
+        if (!command) {
+             res.writeHead(400);
+             res.end('Missing command');
+             return;
+        }
+        res.writeHead(200, { 'Content-Type': 'text/plain' }); // Removed chunked for simplicity in basic bridge
+        
+        // Security: potentially dangerous to run arbitrary shell commands. 
+        // For a local tool, it's acceptable but should be noted.
+        const child = spawn(command, { shell: true });
+        
         child.stdout.on('data', (data) => { if (!res.writableEnded) res.write(data); });
         child.stderr.on('data', (data) => { if (!res.writableEnded) res.write(`STDERR: ${data}`); });
+        
         const killTimeout = setTimeout(() => { if (child && !child.killed) child.kill(); }, 60000);
+        
         child.on('close', (code) => {
           clearTimeout(killTimeout);
           if (!res.writableEnded) {
@@ -82,14 +122,38 @@ const server = http.createServer((req, res) => {
             res.end();
           }
         });
+        
+        child.on('error', (err) => {
+             if (!res.writableEnded) {
+                res.write(`\n[Failed to start process: ${err.message}]`);
+                res.end();
+             }
+        });
+
       } catch (err) {
-        res.writeHead(400);
-        res.end(`BRIDGE_ERROR: ${err.message}`);
+        if (!res.writableEnded) {
+            res.writeHead(400);
+            res.end(`BRIDGE_ERROR: ${err.message}`);
+        }
       }
     });
+  } else {
+      res.writeHead(404);
+      res.end();
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`🚀 OpenClaw Bridge Active (LOCAL MODE) on port ${PORT}`);
+server.listen(PORT, '127.0.0.1', (err) => {
+  if (err) console.error('Failed to start bridge:', err);
+  else console.log(`🚀 OpenClaw Bridge Active (LOCAL MODE) on port ${PORT}`);
+});
+
+server.on('error', (e) => {
+  if (e.code === 'EADDRINUSE') {
+    console.log(`Address localhost:${PORT} in use, retrying...`);
+    setTimeout(() => {
+      server.close();
+      server.listen(PORT, '127.0.0.1');
+    }, 1000);
+  }
 });

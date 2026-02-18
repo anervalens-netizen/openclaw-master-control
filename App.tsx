@@ -112,7 +112,11 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-full bg-[#fcfcfc] overflow-hidden">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        status={status}
+      />
 
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-white px-10 py-4 flex items-center justify-between z-10 shrink-0 border-b border-gray-50">

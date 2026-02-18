@@ -23,9 +23,10 @@ export interface SystemStatus {
   health: 'healthy' | 'warning' | 'critical';
   version: string;
   config?: {
-    status: 'healthy' | 'warning' | 'error' | 'missing';
+    status: 'healthy' | 'warning' | 'error' | 'missing' | 'not_installed';
     message: string;
-    backup: boolean;
+    backup?: boolean;
+    action?: string;
   };
 }
 
