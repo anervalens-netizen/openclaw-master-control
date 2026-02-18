@@ -23,9 +23,9 @@ You don't need to install this yourself. Just copy-paste this prompt to your Ope
 Please install the 'Master Control' GUI for my local management.
 
 1. Navigate to my workspace folder.
-2. Clone the repository: git clone https://github.com/YOUR_USERNAME/openclaw-master-control.git
-3. Enter the directory and run 'npm install' to set up dependencies.
-4. Start the system using 'npm run start:all'.
+2. Clone the repository: git clone https://github.com/anervalens-netizen/openclaw-master-control.git
+3. Enter the directory and run 'npm install'.
+4. Start the system using 'npm run dev'.
 5. Once running, provide me with the localhost URL to access the dashboard.
 ```
 
@@ -34,15 +34,15 @@ Requirements: Node.js v18+
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/openclaw-master-control.git
+git clone https://github.com/anervalens-netizen/openclaw-master-control.git
 cd openclaw-master-control
 
 # 2. Install dependencies
 npm install
 
 # 3. Start Master Control
-# This launches both the Backend Bridge (3001) and Frontend (5173)
-npm run start:all
+# This automatically launches both the Backend Bridge and the Frontend
+npm run dev
 ```
 
 ## 🛠️ Configuration
