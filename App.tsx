@@ -23,7 +23,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const response = await fetch('http://localhost:3001/health');
+        const response = await fetch('/api/health');
         const data = await response.json();
         setStatus(prev => ({ 
           ...prev, 
